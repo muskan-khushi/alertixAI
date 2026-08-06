@@ -73,7 +73,9 @@ export default function Home() {
           <div className="flex items-center justify-between mb-8">
             <div>
               <p className="tracking-label text-[10px] text-mist mb-1">composite trust</p>
-              <p className="text-sm text-ink font-medium">Real-time fused decision</p>
+              <h2 className="text-xl font-medium text-ink mb-8 mt-4 text-center">
+                Composite Risk Score
+              </h2>
             </div>
             <span className="text-[11px] rounded-full bg-success/10 border border-success/25 text-success px-3 py-1">
               allow
@@ -81,7 +83,7 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-[auto_1fr] gap-10 items-center">
-            <TrustGauge score={0.09} size={168} strokeWidth={12} label="trust score" />
+            <TrustGauge score={0.09} size={168} strokeWidth={12} label="risk score" />
             <div className="grid grid-cols-2 gap-3">
               {[
                 { label: "behavioral", value: "0.06" },

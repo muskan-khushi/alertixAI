@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
-import { X, FileCheck, Sparkles, ChevronDown } from "lucide-react";
-import { ApplicationInput, KYC_DEMO_SCENARIOS, submitToIdentityGraphService, KycApplicant, DemoScenario } from "@/lib/kycFraudData";
+import { useState, useEffect } from "react";
+import { X, FileCheck, ChevronDown } from "lucide-react";
+import { ApplicationInput, submitToIdentityGraphService, KycApplicant } from "@/lib/kycFraudData";
 
 interface Props {
   onClose: () => void;
-  onSubmit: (applicant: KycApplicant) => void; // now receives the resolved applicant
+  onSubmit: (applicant: KycApplicant) => void;
+  ghostDemoScenario?: string | null;
 }
 
 const FIELD_META: { key: keyof ApplicationInput; label: string; placeholder: string; required: boolean }[] = [
@@ -19,19 +20,12 @@ const FIELD_META: { key: keyof ApplicationInput; label: string; placeholder: str
   { key: "bankAccount", label: "Linked bank account (optional)", placeholder: "If provided at onboarding", required: false },
 ];
 
-export default function NewApplicationModal({ onClose, onSubmit }: Props) {
+export default function NewApplicationModal({ onClose, onSubmit, ghostDemoScenario }: Props) {
   const [form, setForm] = useState<Record<string, string>>({});
   const [manualOpen, setManualOpen] = useState(false);
   const [stage, setStage] = useState<string | null>(null);
 
   const canSubmitManual = FIELD_META.filter((f) => f.required).every((f) => (form[f.key] ?? "").trim().length > 0);
-
-  const runScenario = async (s: DemoScenario & { burstPattern: boolean }) => {
-    setStage("Verifying document authenticity…");
-    const applicant = await submitToIdentityGraphService(s.build(), "manual_submission", s.burstPattern, setStage);
-    setStage(null);
-    onSubmit(applicant);
-  };
 
   const handleManualSubmit = async () => {
     if (!canSubmitManual) return;
@@ -53,6 +47,88 @@ export default function NewApplicationModal({ onClose, onSubmit }: Props) {
     setStage(null);
     onSubmit(applicant);
   };
+
+  useEffect(() => {
+    if (!ghostDemoScenario) {
+      setManualOpen(true);
+      return;
+    }
+
+    setManualOpen(true);
+
+    const runGhostTyping = async () => {
+      let demoData = {
+        name: "Rahul Verma (Synthetic)",
+        phone: "999-999-9999",
+        address: "123 Link Road, Mumbai",
+        deviceId: "device_999",
+        ipAddress: "192.168.77.5",
+        faceRef: "face_hash_123",
+      };
+      
+      let isBurst = false;
+
+      if (ghostDemoScenario === "clean") {
+        demoData = {
+          name: "Aarohi Desai (Legitimate)",
+          phone: "987-654-3210",
+          address: "456 MG Road, Bengaluru",
+          deviceId: "device_clean_001",
+          ipAddress: "198.51.100.22",
+          faceRef: "face_hash_clean_1",
+        };
+      } else if (ghostDemoScenario === "device_match") {
+        demoData = {
+          name: "Vikram Singh (Account Takeover)",
+          phone: "912-345-6789",
+          address: "789 FC Road, Pune",
+          deviceId: "dvc_a11", // Known bad device from DEMO_MATCH_HINTS
+          ipAddress: "203.0.113.44",
+          faceRef: "face_hash_bob_1",
+        };
+      } else if (ghostDemoScenario === "high_severity") {
+        demoData = {
+          name: "Rohan Sharma (Fraud Ring)",
+          phone: "999-888-7777",
+          address: "101 Sector 15, Noida",
+          deviceId: "dvc_a11", // Known bad device
+          ipAddress: "106.24.9.43", // Known bad IP
+          faceRef: "face_clu_a1", // Known bad face
+        };
+        isBurst = true;
+      }
+
+      const fields = Object.entries(demoData);
+      
+      let currentForm = { ...form };
+      
+      for (const [key, value] of fields) {
+        let typed = "";
+        for (let i = 0; i < value.length; i++) {
+          await new Promise(r => setTimeout(r, 40));
+          typed += value[i];
+          currentForm = { ...currentForm, [key]: typed };
+          setForm(currentForm);
+        }
+        await new Promise(r => setTimeout(r, 100));
+      }
+
+      await new Promise(r => setTimeout(r, 400));
+      
+      setStage("Verifying document authenticity…");
+      const applicant = await submitToIdentityGraphService(
+        demoData,
+        "manual_submission",
+        isBurst, 
+        setStage
+      );
+      setStage(null);
+      onSubmit(applicant);
+    };
+
+    runGhostTyping();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ghostDemoScenario]);
 
   return (
     <>
@@ -76,40 +152,17 @@ export default function NewApplicationModal({ onClose, onSubmit }: Props) {
             </div>
           ) : (
             <>
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <Sparkles size={14} className="text-brand" />
-                  <p className="text-sm font-medium text-ink">Run intake scenario</p>
-                </div>
-                <p className="text-xs text-mist leading-relaxed mb-4">
-                  Simulates a captured onboarding session (device, IP, and face-scan reference)
-                  being checked against the identity graph.
-                </p>
-                <div className="space-y-2">
-                  {KYC_DEMO_SCENARIOS.map((s) => (
-                    <button
-                      key={s.id}
-                      onClick={() => runScenario(s)}
-                      className="w-full text-left rounded-lg border border-border bg-void px-4 py-3 hover:border-brand/50 transition-colors"
-                    >
-                      <p className="text-sm font-medium text-ink">{s.label}</p>
-                      <p className="text-xs text-mist mt-0.5">{s.sub}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="border-t border-border pt-4">
+              <div className="pt-2">
                 <button
                   onClick={() => setManualOpen((v) => !v)}
-                  className="flex items-center gap-1.5 text-xs text-mist hover:text-ink"
+                  className="flex items-center gap-1.5 text-xs text-mist hover:text-ink mb-4"
                 >
                   <ChevronDown size={13} className={`transition-transform ${manualOpen ? "rotate-180" : ""}`} />
                   Manual analyst entry
                 </button>
 
                 {manualOpen && (
-                  <div className="space-y-4 mt-4">
+                  <div className="space-y-4">
                     {FIELD_META.map((f) => (
                       <div key={f.key}>
                         <label className="text-xs text-mist mb-1.5 block">

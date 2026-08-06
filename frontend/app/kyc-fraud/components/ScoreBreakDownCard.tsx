@@ -23,7 +23,7 @@ export default function ScoreBreakdownCard({ applicant }: { applicant: KycApplic
   return (
     <div className="rounded-xl border border-border bg-panel p-5">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-base font-semibold text-ink">Composite Identity Trust Score</h2>
+        <h2 className="text-base font-semibold text-ink">Composite Risk Score</h2>
         {applicant.liveModelSource === "backend" ? (
           <span className="text-[11px] font-medium text-success">● Live CatBoost inference · score {applicant.liveModelScore?.toFixed(3)}</span>
         ) : (
@@ -31,7 +31,7 @@ export default function ScoreBreakdownCard({ applicant }: { applicant: KycApplic
         )}
       </div>
       <div className="flex items-center gap-5 mb-5">
-        <TrustGauge score={1 - applicant.trustScore} size={110} strokeWidth={9} label="trust score" />
+        <TrustGauge score={1 - applicant.trustScore} size={110} strokeWidth={9} label="risk score" />
         <div className="flex-1 space-y-3">
           {ROWS.map((r) => {
             const raw = applicant[r.key] as number;

@@ -21,6 +21,8 @@ export default function KycFraudPage() {
 
   const selected = applicants.find((a) => a.applicantId === selectedId) ?? applicants[0];
 
+  const [ghostDemoScenario, setGhostDemoScenario] = useState<string | null>(null);
+
   // any case that isn't a clean auto-approval stays on screen until you
   // explicitly move away from it — background traffic can never bump it
   useEffect(() => {
@@ -29,6 +31,25 @@ export default function KycFraudPage() {
     }, 0);
     return () => clearTimeout(t);
   }, [selected.decision]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if actually typing
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "8") {
+        setGhostDemoScenario("clean");
+        setFormOpen(true);
+      } else if (e.key === "9") {
+        setGhostDemoScenario("device_match");
+        setFormOpen(true);
+      } else if (e.key === "0") {
+        setGhostDemoScenario("high_severity");
+        setFormOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   useEffect(() => {
     const schedule = () => {
@@ -49,11 +70,12 @@ export default function KycFraudPage() {
   }, []);
 
   const handleFormSubmit = (applicant: KycApplicant) => {
-  setApplicants((prev) => [applicant, ...prev].slice(0, 16));
-  setSelectedId(applicant.applicantId);
-  setPinned(true);
-  setFormOpen(false);
-};
+    setApplicants((prev) => [applicant, ...prev].slice(0, 16));
+    setSelectedId(applicant.applicantId);
+    setPinned(true);
+    setFormOpen(false);
+    setGhostDemoScenario(null);
+  };
 
   const backToLive = () => {
     setPinned(false);
@@ -125,7 +147,7 @@ export default function KycFraudPage() {
         </div>
       </main>
 
-      {formOpen && <NewApplicationModal onClose={() => setFormOpen(false)} onSubmit={handleFormSubmit} />}
+      {formOpen && <NewApplicationModal ghostDemoScenario={ghostDemoScenario} onClose={() => { setFormOpen(false); setGhostDemoScenario(null); }} onSubmit={handleFormSubmit} />}
     </div>
   );
 }
